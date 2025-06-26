@@ -74,8 +74,14 @@ async function checkAndNotify() {
 }
 ////////////////////////////////////////////////////////////
 // 봇 연결하기
-client.once('ready', () => {
+async function initializePrevStates() {
+    const data = await crawl();
+    prevStates = data.map(d => d.class);
+}
+
+client.once('ready', async () => {
   console.log('봇이 준비되었습니다!');
+  await initializePrevStates();
   setInterval(checkAndNotify, 60 * 1000);
 });
 ////////////////////////////////////////////////////////////
