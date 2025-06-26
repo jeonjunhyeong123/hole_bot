@@ -9,7 +9,6 @@ let prevStates = Array(7).fill('no-data clickable');
 // 크롤링 하기
 async function crawl() {
     const browser = await puppeteer.launch({
-        executablePath: '/usr/bin/chromium-browser',
         headless: true,
         args: [
           '--no-sandbox',
