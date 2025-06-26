@@ -8,9 +8,23 @@ let prevStates = Array(7).fill('no-data clickable');
 ////////////////////////////////////////////////////////////
 // 크롤링 하기
 async function crawl() {
-    const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
+    const browser = await puppeteer.launch({
+        executablePath: '/usr/bin/chromium-browser',
+        headless: true,
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-gpu',
+          '--disable-dev-shm-usage',
+          '--no-zygote',
+          '--single-process'
+        ]
+      });
     const page = await browser.newPage();
-    await page.goto("https://mobigg.kr", { waitUntil: "networkidle2" });
+    await page.goto("https://mobigg.kr", {
+        waitUntil: "domcontentloaded",
+        timeout: 60000
+      });
     await page.waitForSelector("td.server-cell");
   
     const data = await page.evaluate(() => {
@@ -73,7 +87,10 @@ client.on('interactionCreate', async interaction => {
   if (interaction.commandName === '심구') {
     await interaction.deferReply();
     try {
-        const data = await crawl();
+        const data = await Promise.race([
+            crawl(),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('서버가 45초 동안 응답하지 않았습니다.')), 45000))
+          ]);
         const info = data.map((d, i) => {
             if (d.class.includes('report-info')) {
                 return `${names[i]} 남은 시간 : ${d.text}`;
@@ -83,7 +100,7 @@ client.on('interactionCreate', async interaction => {
         }).join('\n');
         await interaction.editReply(info);
     } catch (err) {
-        await interaction.editReply('크롤링 중 오류가 발생했습니다.');
+        await interaction.editReply('정보를 가져오는 중 오류가 발생했습니다.');
         console.error(err);
     }
   }
