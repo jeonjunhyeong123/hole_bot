@@ -8,7 +8,7 @@ let prevStates = Array(7).fill('no-data clickable');
 ////////////////////////////////////////////////////////////
 // 크롤링 하기
 async function crawl() {
-    const browser = await puppeteer.launch({ headless: true });
+    const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
     const page = await browser.newPage();
     await page.goto("https://mobigg.kr", { waitUntil: "networkidle2" });
     await page.waitForSelector("td.server-cell");
