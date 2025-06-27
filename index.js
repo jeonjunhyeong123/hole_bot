@@ -8,43 +8,50 @@ let prevStates = Array(7).fill('no-data clickable');
 ////////////////////////////////////////////////////////////
 // 크롤링 하기
 async function crawl() {
-    const browser = await puppeteer.launch({
-        headless: true,
-        protocolTimeout: 60000,
-        args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-gpu',
-          '--disable-dev-shm-usage',
-          '--no-zygote',
-          '--single-process'
-        ]
-      });
-    const page = await browser.newPage();
-    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
-    await page.goto("https://mobigg.kr", {
-        waitUntil: "domcontentloaded",
-        timeout: 60000
-      });
-    await page.waitForFunction(
-        () => document.querySelectorAll('td.server-cell').length >= 7,
-        { timeout: 10000 }
-    );
-    const data = await page.evaluate(() => {
-      const cells = Array.from(document.querySelectorAll("td.server-cell")).slice(0,7);
-      return cells.map(cell => {
-        const div = cell.querySelector('div');
-        return {
-          class: div ? div.className : '',
-          text: div ? div.innerText.trim() : ''
-        };
-      });
-    });
-    if (data.filter(d => d.class).length === 0) {
-        await sendDiscordMessage('⚠️크롤링 결과가 비어 있습니다! 네트워크 문제일 수 있습니다.');
+    let browser;
+    try {
+        browser = await puppeteer.launch({
+            headless: true,
+            protocolTimeout: 60000,
+            args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-gpu',
+                '--disable-dev-shm-usage',
+                '--no-zygote',
+                '--single-process'
+            ]
+        });
+        const page = await browser.newPage();
+        await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+        await page.goto("https://mobigg.kr", {
+            waitUntil: "domcontentloaded",
+            timeout: 60000
+        });
+        await page.waitForFunction(
+            () => document.querySelectorAll('td.server-cell').length >= 7,
+            { timeout: 10000 }
+        );
+        const data = await page.evaluate(() => {
+            const cells = Array.from(document.querySelectorAll("td.server-cell")).slice(0,7);
+            return cells.map(cell => {
+                const div = cell.querySelector('div');
+                return {
+                    class: div ? div.className : '',
+                    text: div ? div.innerText.trim() : ''
+                };
+            });
+        });
+
+        if (data.filter(d => d.class).length === 0) {
+            await sendDiscordMessage('⚠️결과가 비어 있습니다! 네트워크 문제일 수 있습니다.');
+        }
+        await browser.close();
+        return data;
+    } catch (err) {
+        await sendDiscordMessage('⚠️크롤링에 실패하였습니다.');
+        throw err;
     }
-    await browser.close();
-    return data;
 }
 ////////////////////////////////////////////////////////////
 // 메세지 보내는 함수
@@ -102,6 +109,11 @@ client.on('interactionCreate', async interaction => {
             crawl(),
             new Promise((_, reject) => setTimeout(() => reject(new Error('서버가 45초 동안 응답하지 않았습니다.')), 45000))
           ]);
+        if (!data || !Array.isArray(data) || data.length === 0) {
+            await sendDiscordMessage('⚠️결과가 비어 있습니다! 네트워크 문제일 수 있습니다.');
+            await interaction.editReply('심구 정보를 불러오지 못했습니다. 관리자에게 문의하세요.');
+            return;
+        }
         const info = data.map((d, i) => {
             if (d.class.includes('report-info')) {
                 return `${names[i]} 남은 시간 : ${d.text}`;
