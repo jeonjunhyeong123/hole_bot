@@ -21,12 +21,15 @@ async function crawl() {
         ]
       });
     const page = await browser.newPage();
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
     await page.goto("https://mobigg.kr", {
         waitUntil: "domcontentloaded",
         timeout: 60000
       });
-    await page.waitForSelector("td.server-cell");
-  
+    await page.waitForFunction(
+        () => document.querySelectorAll('td.server-cell').length >= 7,
+        { timeout: 10000 }
+    );
     const data = await page.evaluate(() => {
       const cells = Array.from(document.querySelectorAll("td.server-cell")).slice(0,7);
       return cells.map(cell => {
@@ -37,7 +40,9 @@ async function crawl() {
         };
       });
     });
-  
+    if (data.filter(d => d.class).length === 0) {
+        await sendDiscordMessage('⚠️크롤링 결과가 비어 있습니다! 네트워크 문제일 수 있습니다.');
+    }
     await browser.close();
     return data;
 }
